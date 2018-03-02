@@ -1,5 +1,6 @@
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
 # COMP2611 Spring 2018 Homework 1
-LIU Weiyang, 20413306
+LIU Weiyang, 20413306<br/>
 <mailto:wliuax@connect.ust.hk><br/>
 
 [TOC]
