@@ -1,11 +1,11 @@
-#COMP2611 Spring 2018 Homework 1
+# COMP2611 Spring 2018 Homework 1
 LIU Weiyang, 20413306
 <mailto:wliuax@connect.ust.hk><br/>
 
 [TOC]
 
-##Question 1: Data representation
-###a) Signed int on 16 bits
+## Question 1: Data representation
+### a) Signed int on 16 bits
 I. 8CE~(16)~
 - 2's complement = 0000 1000 1100 1110
 - Decimal = 2254
@@ -14,7 +14,7 @@ II. -114~(10)~
 - 2's complement = 1111 1111 1000 1110
 - Hexadecimal = FF8E
 
-###b) Signed int on 32 bits
+### b) Signed int on 32 bits
 I. BEAD~(16)~
 - 2’s complement = 0000 0000 0000 0000 1011 1110 1010 1101
 - Decimal = 48813
@@ -23,7 +23,7 @@ II. -357821~(10)~
 - 2’s complement = 1111 1111 1111 1010 1000 1010 0100 0011
 - Hexadecimal = FFFA8A43
 
-###c) Floating point -- decimal to binary
+### c) Floating point -- decimal to binary
 I. -2843.625
 $ 2843_{10} = \text{B1B}_{16} = \text{1011 0001 1011} \\
 \begin{aligned} {-2843.625}_{10} &= {1011\space0001\space1011.101}_2 \\
@@ -35,7 +35,7 @@ Therefore, ${-2843.625}_{10} = 1\quad1000\space1010\quad0110\space0011\space0111
 
 II. 0.085
 
-\#|f|f $$$\times$$$ 2|Bit
+\#|f|f $\times$ 2|Bit
 :---|:---:|:---:|:---:
 |0.085|0.17|0
 |0.17|0.34|0
@@ -55,7 +55,7 @@ S = 0\text{, Significand} = 0101\space1100\space0010\space1000\space1111\space01
 
 Therefore, $0.085_{10} = 0\quad0111\space1011\quad0101\space1100\space0010\space1000\space1111\space011$
 
-###d) Floating point -- binary to decimal
+### d) Floating point -- binary to decimal
 I. 0 1001 0011 11101100101110110110000
 
 $ S = 0\text{, Exponent}= {1001\space0011}_2 = 147_{10} \\
@@ -77,7 +77,7 @@ $ S = 1\text{, Exponent}= {0000\space0000}_2 = 0 \\
 =&(-1)^1 \times 0.875 \times 2^{-126} \\
 =&-0.875 \times 2^{-126}\end{aligned}$
 
-##Question 2: Boolean algebra
+## Question 2: Boolean algebra
 I.
 
 $\begin{aligned}&AB+AB\overline{C}D+ABD\overline{E}+\overline{A}B\overline{C}E+\overline{A}\space\overline{B}\space\overline{C}E \\
@@ -105,8 +105,8 @@ $\begin{aligned}&\overline{\overline{A\overline{AB}}\cdot\overline{B\overline{AB
 =&A(\overline{A}+\overline{B})+B(\overline{A}+\overline{B}) \\
 =&A\overline{B}+B\overline{A}\end{aligned}$
 
-##Question 3: Combinational logic
-###a) Truth table
+## Question 3: Combinational logic
+### a) Truth table
 N~3~|N~2~|N~1~|N~0~|P
 :---:|:---:|:---:|:---:|:---:
 0|0|0|0|0
@@ -126,7 +126,7 @@ N~3~|N~2~|N~1~|N~0~|P
 1|1|1|0|0
 1|1|1|1|0
 
-###b) Logic expression
+### b) Logic expression
 $\begin{aligned}P=&\overline{N_3}\space\overline{N_2}\space\overline{N_1}\space N_0 + \overline{N_3}\space\overline{N_2}\space N_1\space\overline{N_0} +  \overline{N_3}\space\overline{N_2}\space N_1\space N_0 \\
 +&\overline{N_3}\space N_2\space \overline{N_1}\space N_0 + \overline{N_3}\space N_2\space N_1\space N_0 + N_3\space \overline{N_2}\space N_1\space N_0 \\
 +&N_3\space N_2\space \overline{N_1}\space N_0 \end{aligned} $
@@ -137,7 +137,7 @@ $ \begin{aligned}P=&(N_3+N_2+N_1+N_0)(N_3+\overline{N_2}+N_1+N_0) \\
 &(\overline{N_3}+\overline{N_2}+N_1+N_0)(\overline{N_3}+\overline{N_2}+\overline{N_1}+N_0) \\
 &(\overline{N_3}+\overline{N_2}+\overline{N_1}+\overline{N_0})\end{aligned} $
 
-###c) Simplify with K-map
+### c) Simplify with K-map
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N~1~N~0~<br/>N~3~N~2~|00<br/><br/>|01<br/><br/>|11<br/><br/>|10<br/><br/>
 :---|:---:|:---:|:---:|:---:
 **00**|0|1|1|1
@@ -147,11 +147,11 @@ $ \begin{aligned}P=&(N_3+N_2+N_1+N_0)(N_3+\overline{N_2}+N_1+N_0) \\
 
 $ P = \overline{N_3}N_0+N_2\overline{N_1}N_0+\overline{N_3}\space\overline{N_2}N_1+\overline{N_2}N_1N_0 $
 
-###d) Implement with gates
+### d) Implement with gates
 ![Q3d Circuit](Q3d.png)
 
-##Question 4: Sequential logic
-###a) S-R latch
+## Question 4: Sequential logic
+### a) S-R latch
 I.
 
 $X$|$Y$|$Q$|$\overline{Q}$
@@ -163,7 +163,7 @@ $X$|$Y$|$Q$|$\overline{Q}$
 
 II. No, beacuse the value stored (Q) is always 1 and cannot be changed.
 
-###b) D flip-flop
+### b) D flip-flop
 As it's positive edge trigged, its timing diagram is as follows:
 
 ![Q4b timing diagram](Q4b.png)
