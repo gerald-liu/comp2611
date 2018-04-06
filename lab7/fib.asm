@@ -13,7 +13,7 @@ main:
 	la	$a0, msgI
 	syscall
 
-	# print n
+	# read n
 	li	$v0, 5
 	syscall
 
