@@ -128,10 +128,7 @@ FindNthPrime:
 # What is_prime should do: Given a value in $a0, check whether it is a prime
 # if $a0 is prime, then return $v0=1, otherwise, return $v0=0
 is_prime:
-# TODO below
-	addi 	$sp, $sp, -4
-	sw 	$ra, 0($sp)
-	
+# TODO below	
 	li	$t0, 2		# $t0 = j = 2
 	div	$a0, $t0
 	mflo	$t1		# $t1 = i / 2 
@@ -155,8 +152,6 @@ is_prime:
 	li	$v0, 0		# return 0
 	
 	exit_is_prime:
-	lw 	$ra, 0($sp)
-        addi 	$sp, $sp, 4
         jr 	$ra
 # TODO above
 
