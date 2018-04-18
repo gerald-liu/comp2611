@@ -56,9 +56,6 @@ searchInput:
 ### search a number ($a2) in the array (its base address in a0 and size in a1), and return 1 if the number is found or else return 0.
 ### int search(int[], int, int) 
 search: 
-	li $v0, 0
-	
-loop:
 	beq $a1, $0, loopEnd
 	lw $t0, 0($a0)
 	bne $t0, $a2, loopIncrement # number is not found yet
@@ -68,9 +65,8 @@ loop:
 loopIncrement:
 	addi $a1, $a1, -1
 	addi $a0, $a0, 4
-	j loop
+	j search
 	
 loopEnd:
 	li $v0, 0
 	jr $ra
-	 
