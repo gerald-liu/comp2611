@@ -1,5 +1,9 @@
-.data
+# Pac-Man 2611
+# Author: LIU, Weiyang
+# Student ID: 20413306
+# Email: wliuax@connect.ust.hk
 
+.data
 
 quiz_time:  .word 0 # the remaining time (number of game iterations) of the Quiz mode
 shield_time:  .word 0 # the remaining time (number of pacman movement inputs) of the Shield mode
@@ -423,7 +427,85 @@ gdl_exit:
 # For each cell containing value 0, create a score point object using syscall on its corresponding
 initialize_score_points:
 #*****Your codes start here
+  # prepare necessary info
+  la $t0, grid_row_num
+  lw $t1, 0($t0)	# $t1 = row_num = 20
+  la $t0, grid_col_num
+  lw $t2, 0($t0)	# $t2 = col_num = 25
+  mult $t1, $t2
+  mflo $t0		# $t0 = row_num * col_num = n
+  li $t2, 0		# $t2 = i = 0
+  la $t3, maze_bitmap	# $t3 = addr(maze[0])
+  la $t4, grid_cell_size
+  lw $t5, 0($t4)	# $t5 = width
+  lw $t6, 4($t4)	# $t6 = height
+  la $t4, scorepoint_base
+  lw $t4, 0($t4)	# $t4 = scorepoint_base
   
+  addi $sp, $sp, -20
+  sw $s0, 0($sp)
+  sw $s1, 4($sp)
+  sw $s2, 8($sp)
+  sw $s3, 12($sp)
+  sw $s4, 16($sp)
+  la $s0, scorepoint_sv
+  la $s1, total_score
+  la $s2, scorepoint_num
+  la $s3, remaining_sp_num
+  la $s4, scorepoint_locs
+
+init_sp_loop:
+  # check if a cell is an open path
+  slt $t7, $t2, $t0	# $t7 = (i < n) ? 1 : 0
+  beq $t7, $0, exit_init_sp_loop # while (i < n)
+  add $t7, $t3, $t2	# $t7 = addr(maze[i])
+  lb $t7, 0($t7)	# $t7 = maze[i]
+  bne $t7, $0, no_sp	# if (maze[i] == 0)
+  
+  # create a score point for an open path
+  beq $t4, $0, first_sp	# if (not first_sp)
+  addi $t4, $t4, 1	# scorepoint_num++
+first_sp:
+  addi $a0, $t4, 0	# $a0 = ID = scorepoint_num
+  div $t2, $t1		# i / row_num
+  mflo $t7		# $t7 = [I]
+  mfhi $t8		# $t8 = [J]
+  mult $t8, $t5
+  mflo $t8		# $t8 = x = [J] * width
+  addi $a1, $t8, 0	# $a1 = x
+  mult $t7, $t6
+  mflo $t7		# $t7 = y = [I] * height
+  addi $a2, $t7, 0	# $a2 = y
+  li $a3, 0		# $a3 = object type = 0
+  li $v0, 205		# $v0 = 205 for creating a object
+  syscall
+  
+  # updating global variables
+  sw $t8, 0($s4)	# scorepoint_locs[2k] = x
+  sw $t7, 4($s4)	# scorepoint_locs[2k + 1] = y
+  addi $s4, $s4, 8	# $t9 = addr(scorepoint_locs[2(k+1)])
+  
+  sw $v0, 0($s0)	# scorepoint_sv[k] = $v0
+  addi $s0, $s0, 4	# $s0 = addr(scorepoint_sv[k+1])
+  
+  lw $t7, 0($s1)	# $t7 = total_score
+  add $t7, $t7, $v0
+  sw $t7, 0($s1)	# total_score += scorepoint_sv[k]
+
+  sw $t4, 0($s2)	# scorepoint_num++
+  sw $t4, 0($s3)	# remaining_sp_num++
+  
+no_sp:
+  addi $t2, $t2, 1	# i++
+  j init_sp_loop
+  
+exit_init_sp_loop:
+  lw $s0, 0($sp)
+  lw $s1, 4($sp)
+  lw $s2, 8($sp)
+  lw $s3, 12($sp)
+  lw $s4, 16($sp)
+  addi $sp, $sp, 20
 # *****Your codes end here
   jr $ra
 
@@ -769,8 +851,7 @@ tp_new_loc: # get a new pacman location and check its validity
 #--------------------------------------------------------------------
 # procedure: move_pacman_up(check_validity)
 # Move the pacman object upward by one step which is its speed.
-# If check_validity is not 0, move the object only when the object will not
-# overlap with a wall cell afterward. 
+# If check_validity is not 0, move the object only when the object will not overlap with a wall cell afterward. 
 # If the pacman object is completely above the upper-border of the maze after the movement,
 # only change the y-coordinate of its location to the maze's height minus its height.
 # $v0=1 if a movement has been made, otherwise $v0=0.
@@ -778,21 +859,62 @@ tp_new_loc: # get a new pacman location and check its validity
 move_pacman_up:
 # *****Task2: you need to complete this procedure move_pacman_up to perform its operations described in its comments above. 
 # *****Your codes start here   
+  addi $sp, $sp, -4
+  sw $ra, 0($sp)	# push $ra
+  
+  # calculate the position after moving
+  la $t0, pacman_size
+  lw $t1, 4($t0)	# $t1 = pacman height 
+  la $t0, pacman_speed
+  lw $t2, 0($t0)	# $t2 = pacman speed
+  la $t0, pacman_locs	# $t0 = addr(pacman_locs)
+  lw $t3, 0($t0)	# $t3 = pacman x_loc
+  lw $t4, 4($t0)	# $t4 = pacman y_loc
+  sub $t2, $t4, $t2	# $t2 = pacman y_loc after moving
+  
+  # check if the move crosses a border of the maze
+  slt $t5, $t2, $0	# $t5 = (crossing boarder) ? 1 : 0
+  beq $t5, $0, mpu_check_path # if (crossing boarder)
+  la $t5, maze_size
+  lw $t4, 4($t5)	# $t4 = maze height
+  addi $t2, $t4, -1	# pacman y_loc = maze height - 1, back to lower boarder
+  j mpu_save_yloc	# save movement
 
+mpu_check_path:
+  # not crossing boarder, check if the move enters a wall
+  beq $a0, $0, mpu_save_yloc # if ($a0 != 0) do not ignore walls
+  addi $a0, $t3, 0	# x-coordinate of pacman top left corner
+  addi $a1, $t2, 0	# y-coordinate of pacman top left corner
+  jal get_bitmap_cell	# $v0 = pacman enters a wall
+  slt $v0, $0, $v0
+  bne $v0, $0, mpu_no_move # if (not entering a wall) 
+  
+mpu_save_yloc:
+  # confirm the move, set the new location of pacman
+  sw $t2, 4($t0)	# save new y_loc
+  la $t0, pacman_id
+  lw $a0, 0($t0)	# $a0 = pacman_id
+  addi $a1, $t3, 0	# $a1 = pacman x_loc
+  addi $a2, $t2, 0	# $a2 = pacman y_loc after moving  
+  li $a3, 1		# $a2 = pacman object type = 1
+  li $v0, 206		# $v0 = 206 for setting new object location 
+  syscall
+  li $v0, 1		# moved, return 1
+  j mpu_exit
 
+mpu_no_move:
+  li $v0, 0		# not moved, return 0
 
-
-
+mpu_exit:
+  lw $ra, 0($sp)	# pop $ra
+  addi $sp, $sp, 4
 # *****Your codes end here
   jr $ra
-
-
 
 #--------------------------------------------------------------------
 # procedure: move_pacman_down(check_validity)
 # Move the pacman object downward by one step which is its speed.
-# If check_validity is not 0, move the object only when the object will not
-# overlap with a wall cell afterward. 
+# If check_validity is not 0, move the object only when the object will not overlap with a wall cell afterward. 
 # If the pacman object is completely below the lower-border of the maze after the movement,
 # only change the y-coordinate of its location to 0.
 # $v0=1 if a movement has been made, otherwise $v0=0.
@@ -800,10 +922,57 @@ move_pacman_up:
 move_pacman_down:
 # *****Task3: you need to complete this procedure move_pacman_down to perform its operations described in its comments above. 
 # *****Your codes start here
+  addi $sp, $sp, -4
+  sw $ra, 0($sp)	# push $ra
+  
+  # calculate the position after moving
+  la $t0, pacman_size
+  lw $t1, 4($t0)	# $t1 = pacman height 
+  la $t0, pacman_speed
+  lw $t2, 0($t0)	# $t2 = pacman speed
+  la $t0, pacman_locs	# $t0 = addr(pacman_locs)
+  lw $t3, 0($t0)	# $t3 = pacman x_loc
+  lw $t4, 4($t0)	# $t4 = pacman y_loc
+  add $t2, $t4, $t2	# $t2 = pacman y_loc after moving
+  
+  # check if the move crosses a border of the maze
+  la $t5, maze_size
+  lw $t4, 4($t5)	# $t4 = maze height
+  addi $t4, $t4, -1	# $t4 = y_loc of lower boarder
+  slt $t5, $t4, $t2	# $t5 = (crossing boarder) ? 1 : 0
+  beq $t5, $0, mpd_check_path # if (crossing boarder)
+  li $t2, 0		# pacman y_loc = 0, back to upper boarder
+  j mpd_save_yloc	# save movement
 
+mpd_check_path:
+  # not crossing boarder, check if the move enters a wall
+  beq $a0, $0, mpd_save_yloc # if ($a0 != 0) do not ignore walls
+  addi $a0, $t3, 0	# x-coordinate of pacman bottom left corner
+  add $a1, $t2, $t1
+  addi $a1, $a1, -1	# y-coordinate of pacman bottom left corner
+  jal get_bitmap_cell	# $v0 = pacman enters a wall
+  slt $v0, $0, $v0
+  bne $v0, $0, mpd_no_move # if (not entering a wall) 
+  
+mpd_save_yloc:
+  # confirm the move, set the new location of pacman
+  sw $t2, 4($t0)	# save new y_loc
+  la $t0, pacman_id
+  lw $a0, 0($t0)	# $a0 = pacman_id
+  addi $a1, $t3, 0	# $a1 = pacman x_loc
+  addi $a2, $t2, 0	# $a2 = pacman y_loc after moving  
+  li $a3, 1		# $a2 = pacman object type = 1
+  li $v0, 206		# $v0 = 206 for setting new object location 
+  syscall
+  li $v0, 1		# moved, return 1
+  j mpd_exit
 
+mpd_no_move:
+  li $v0, 0		# not moved, return 0
 
-
+mpd_exit:
+  lw $ra, 0($sp)	# pop $ra
+  addi $sp, $sp, 4
 # *****Your codes end here
   jr $ra
 
@@ -1029,20 +1198,19 @@ uks_exit:
 # @params: the coordinates of RectA and RectB are passed through stack.
 #      In total, 8 words are passed. RectA is followed by RectB, as shown below. 
 # 
-# | RectA.topleft_x |
-# | RectA.topleft_y |
-# | RectA.botrigh_x |
-# | RectA.botrigh_y |
-# | RectB.topleft_x |
-# | RectB.topleft_y |
-# | RectB.botrigh_x |
-# | RectB.botrigh_y | <-- $sp 
+# | RectA.topleft_x |x1
+# | RectA.topleft_y |y1
+# | RectA.botrigh_x |x2
+# | RectA.botrigh_y |y2
+# | RectB.topleft_x |x3
+# | RectB.topleft_y |y3
+# | RectB.botrigh_x |x4
+# | RectB.botrigh_y |y4 <-- $sp 
 
 # This procedure is to check whether the above two rectangles intersect each other!
 # @return $v0=1: true(intersect with each other); 0: false
 #--------------------------------------------------------------------
 check_intersection:
-
 #*****Task4:
 # Hints:
 # Firstly, load 8 parameters/coordinates from the stack.
@@ -1053,16 +1221,36 @@ check_intersection:
 #          condition4: whether RectA's bottom edge is above RectB's top edge.
 # Thirdly, set the value of $v0 based on the check result. Then: jr $ra 
 #*****Your codes start here
-
   # condition1: whether A's left edge is to the right of B's right edge,
+  lw $t0, 4($sp)	# $t0 = x4
+  lw $t1, 28($sp)	# $t1 = x1
+  slt $t2, $t0, $t1	# $t2 = (x4 < x1) ? 1 : 0
+  bne $t2, $0, no_intersect
   
   # condition2: whether A's right edge is to the left of B's left edge,
+  lw $t0, 20($sp)	# $t0 = x2
+  lw $t1, 12($sp)	# $t1 = x3
+  slt $t2, $t0, $t1	# $t2 = (x2 < x3) ? 1 : 0
+  bne $t2, $0, no_intersect
   
   # condition3: whether A's top edge is below B's bottom edge,
+  lw $t0, 0($sp)	# $t0 = y4
+  lw $t1, 24($sp)	# $t1 = y1
+  slt $t2, $t0, $t1	# $t2 = (y4 < y1) ? 1 : 0
+  bne $t2, $0, no_intersect
   
   # conditon4: whether A's bottom edge is above B's top edge,
-  
+  lw $t0, 16($sp)	# $t0 = y2
+  lw $t1, 8($sp)	# $t1 = y3
+  slt $t2, $t0, $t1	# $t2 = (y2 < y3) ? 1 : 0
+  bne $t2, $0, no_intersect
 
+  addi $v0, $v0, 1	# intersection = true
+  jr $ra
+  
+no_intersect:
+  addi $v0, $v0, 0	# intersection = false
+  jr $ra
 #*****Your codes end here
 
 
@@ -1108,12 +1296,11 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
 
 # *****Task5.1: you need to check if the pacman object intersects the score point object.
 # You should call procedure: check_intersection to check the intersection.
-
 # Hints:
-# The pacman rectangle's top-left point: (x1, y1), x1 is in $t0, y1 is in $t1
-# The pacman rectangle's bottom-right point: (pacman width + x1 - 1, pacman height + y1 - 1)
-# The score-point rectangle's top-left point: (x2, y2), x2 is in $t6, y2 is in $t7
-# The score-point rectangle's bottom-right point: (score-point width + x2 - 1, score-point height + y2 - 1)
+# The pacman rectangle's top-left point: (x1, y1) = (t0, t1)
+# The pacman rectangle's bottom-right point: (pacman width + x1 - 1, pacman height + y1 - 1) = (s6+t0-1, s7+t1-1)
+# The score-point rectangle's top-left point: (x3, y3) = (t6, t7)
+# The score-point rectangle's bottom-right point: (score-point width + x3 - 1, score-point height + y3 - 1) = (s3+t6-1, s4+t7-1)
 
 # Those points' coordinates should be stored in stack before calling procedure: check_intersection
 # @params: the coordinates of RectA(rectangle of pacman) and RectB(rectangle of score point object) are passed through stack.
@@ -1128,14 +1315,30 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
 # | RectB.botrigh_x |
 # | RectB.botrigh_y | <-- $sp 
 # *****Your codes start here
-    
-  
-  
+  addi $sp, $sp, -32
+  sw $t0, 28($sp)	# x1 = $t0
+  sw $t1, 24($sp)	# y1 = $t1
+  add $t0, $s6, $t0
+  addi $t0, $t0, -1
+  sw $t0, 20($sp)	# x2 = $t0 + $s6 -1
+  add $t1, $s7, $t1
+  addi $t1, $t1, -1
+  sw $t1, 16($sp)	# y2 = $t1 + $s7 -1
+  sw $t6, 12($sp)	# x3 = $t6
+  sw $t7, 8($sp)	# y3 = $t7
+  add $t6, $s3, $t6
+  addi $t6, $t6, -1
+  sw $t6, 4($sp)	# x4 = $t6 + $s3 -1
+  add $t7, $s4, $t7
+  addi $t7, $t7, -1
+  sw $t7, 0($sp)	# y4 = $t7 + $s4 -1
+  jal check_intersection
+  addi $sp, $sp, 32
 # *****Your codes end here
 
-        # After calling procedure check_intersection, $v0=0 if the pacman has not intersected the score point object
+  # After calling procedure check_intersection, $v0=0 if the pacman has not intersected the score point object
   beq $v0, $zero, csc_next 
-  # hide the object
+  # hide the score point object
   li $a1, -9999
   sw $a1, 0($s2) # x_loc
   lw $a2, 4($s2) # y_loc 
@@ -1156,9 +1359,13 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
 
 # *****Task5.2: you need to increase the game score by the SV of the score point object in collision with the pacman.
 # *****Your codes start here
-
-  
-
+  la $t1, scorepoint_sv
+  add $t1, $t1, $t0	# $t1 = addr(scorepoint_sv[i])
+  lw $t1, 0($t1)	# $t1 = scorepoint_sv
+  la $t2, game_score
+  lw $t3, 0($t2)	# $t2 = game_score
+  add $t3, $t3, $t1
+  sw $t3, 0($t2)	# game_score += scorepoint_sv
 # *****Your codes end here
   
 
@@ -1237,12 +1444,11 @@ cgc_be: beq $s0, $zero, cgc_no_collision # whether num <= 0
   li $v0, 0
 # *****Task6: you need to check if the pacman object intersects the ghost object.
 # You should call procedure: check_intersection to check the intersection.
-
 # Hints:
-# The pacman rectangle's top-left point: (x1, y1), x1 is in $t0, y1 is in $t1
-# The pacman rectangle's bottom-right point: (pacman width + x1 - 1, pacman height + y1 - 1)
-# The ghost rectangle's top-left point: (x2, y2), x2 is in $v0, y2 is in $v1
-# The ghost rectangle's bottom-right point: (ghost width + x2 - 1, ghost height + y2 - 1)
+# The pacman rectangle's top-left point: (x1, y1) = (t0, t1)
+# The pacman rectangle's bottom-right point: (pacman width + x1 - 1, pacman height + y1 - 1) = (s6+t0-1, s7+t1-1)
+# The ghost rectangle's top-left point: (x2, y2) = (t2, t3)
+# The ghost rectangle's bottom-right point: (ghost width + x2 - 1, ghost height + y2 - 1) = (s3+t2-1, s4+t3-1)
 
 # Those points' coordinates should be stored in stack before calling procedure: check_intersection
 # @params: the coordinates of RectA(rectangle of pacman) and RectB(rectangle of ghost) are passed through stack.
@@ -1257,9 +1463,25 @@ cgc_be: beq $s0, $zero, cgc_no_collision # whether num <= 0
 # | RectB.botrigh_x |
 # | RectB.botrigh_y | <-- $sp 
 # *****Your codes start here
-    
-  
-  
+  addi $sp, $sp, -32
+  sw $t0, 28($sp)	# x1 = $t0
+  sw $t1, 24($sp)	# y1 = $t1
+  add $t0, $s6, $t0
+  addi $t0, $t0, -1
+  sw $t0, 20($sp)	# x2 = $t0 + $s6 -1
+  add $t1, $s7, $t1
+  addi $t1, $t1, -1
+  sw $t1, 16($sp)	# y2 = $t1 + $s7 -1
+  sw $t2, 12($sp)	# x3 = $t2
+  sw $t3, 8($sp)	# y3 = $t3
+  add $t2, $s3, $t2
+  addi $t2, $t2, -1
+  sw $t2, 4($sp)	# x4 = $t2 + $s3 -1
+  add $t3, $s4, $t3
+  addi $t3, $t3, -1
+  sw $t3, 0($sp)	# y4 = $t3 + $s4 -1
+  jal check_intersection
+  addi $sp, $sp, 32
 # *****Your codes end here
 
   # After calling procedure: check_intersection, $v0=0 if the pacman missed the ghost object
