@@ -434,13 +434,14 @@ initialize_score_points:
   lw $t2, 0($t0)	# $t2 = col_num = 25
   mult $t1, $t2
   mflo $t0		# $t0 = row_num * col_num = n
-  li $t2, 0		# $t2 = i = 0
+  li $t1, 0		# $t1 = i = 0
   la $t3, maze_bitmap	# $t3 = addr(maze[0])
   la $t4, grid_cell_size
   lw $t5, 0($t4)	# $t5 = width
   lw $t6, 4($t4)	# $t6 = height
   la $t4, scorepoint_base
   lw $t4, 0($t4)	# $t4 = scorepoint_base
+  li $t9, 0		# $t9 = scorepoint_num = 0
   
   addi $sp, $sp, -20
   sw $s0, 0($sp)
@@ -456,18 +457,15 @@ initialize_score_points:
 
 init_sp_loop:
   # check if a cell is an open path
-  slt $t7, $t2, $t0	# $t7 = (i < n) ? 1 : 0
+  slt $t7, $t1, $t0	# $t7 = (i < n) ? 1 : 0
   beq $t7, $0, exit_init_sp_loop # while (i < n)
-  add $t7, $t3, $t2	# $t7 = addr(maze[i])
+  add $t7, $t3, $t1	# $t7 = addr(maze[i])
   lb $t7, 0($t7)	# $t7 = maze[i]
   bne $t7, $0, no_sp	# if (maze[i] == 0)
   
   # create a score point for an open path
-  beq $t4, $0, first_sp	# if (not first_sp)
-  addi $t4, $t4, 1	# scorepoint_num++
-first_sp:
-  addi $a0, $t4, 0	# $a0 = ID = scorepoint_num
-  div $t2, $t1		# i / row_num
+  addi $a0, $t4, 0	# $a0 = ID
+  div $t1, $t2		# i / col_num
   mflo $t7		# $t7 = [I]
   mfhi $t8		# $t8 = [J]
   mult $t8, $t5
@@ -491,12 +489,14 @@ first_sp:
   lw $t7, 0($s1)	# $t7 = total_score
   add $t7, $t7, $v0
   sw $t7, 0($s1)	# total_score += scorepoint_sv[k]
-
-  sw $t4, 0($s2)	# scorepoint_num++
-  sw $t4, 0($s3)	# remaining_sp_num++
+  
+  addi $t4, $t4, 1	# ID++
+  addi $t9, $t9, 1
+  sw $t9, 0($s2)	# scorepoint_num++
+  sw $t9, 0($s3)	# remaining_sp_num++
   
 no_sp:
-  addi $t2, $t2, 1	# i++
+  addi $t1, $t1, 1	# i++
   j init_sp_loop
   
 exit_init_sp_loop:
@@ -506,6 +506,12 @@ exit_init_sp_loop:
   lw $s3, 12($sp)
   lw $s4, 16($sp)
   addi $sp, $sp, 20
+  
+  # reset lives to 3
+  la $t0, lives
+  li $t1, 3
+  sw $t1, 0($t0)
+  
 # *****Your codes end here
   jr $ra
 
@@ -873,11 +879,14 @@ move_pacman_up:
   sub $t2, $t4, $t2	# $t2 = pacman y_loc after moving
   
   # check if the move crosses a border of the maze
-  slt $t5, $t2, $0	# $t5 = (crossing boarder) ? 1 : 0
+  add $t4, $t2, $t1
+  addi $t4, $t4, -1	# $t4 = y-coordinate of pacman's bottom corners
+  slt $t5, $t4, $0	# $t5 = (crossing boarder) ? 1 : 0
   beq $t5, $0, mpu_check_path # if (crossing boarder)
-  la $t5, maze_size
-  lw $t4, 4($t5)	# $t4 = maze height
-  addi $t2, $t4, -1	# pacman y_loc = maze height - 1, back to lower boarder
+  
+  la $t4, maze_size
+  lw $t4, 4($t4)	# $t4 = maze height
+  sub $t2, $t4, $t1	# pacman y_loc = maze height - pacman height, back to lower boarder
   j mpu_save_yloc	# save movement
 
 mpu_check_path:
@@ -885,16 +894,26 @@ mpu_check_path:
   beq $a0, $0, mpu_save_yloc # if ($a0 != 0) do not ignore walls
   addi $a0, $t3, 0	# x-coordinate of pacman top left corner
   addi $a1, $t2, 0	# y-coordinate of pacman top left corner
+  
+  addi $sp, $sp, -4
+  sw $t2, 0($sp)	# push $t2
+  
   jal get_bitmap_cell	# $v0 = pacman enters a wall
+  
+  lw $t2, 0($sp)	# pop $t2
+  addi $sp, $sp, 4
+  
   slt $v0, $0, $v0
-  bne $v0, $0, mpu_no_move # if (not entering a wall) 
+  bne $v0, $0, mpu_no_move # if (move) 
   
 mpu_save_yloc:
   # confirm the move, set the new location of pacman
+  la $t0, pacman_locs	# $t0 = addr(pacman_locs)
+  lw $t1, 0($t0)	# $t1 = pacman x_loc
   sw $t2, 4($t0)	# save new y_loc
   la $t0, pacman_id
   lw $a0, 0($t0)	# $a0 = pacman_id
-  addi $a1, $t3, 0	# $a1 = pacman x_loc
+  addi $a1, $t1, 0	# $a1 = pacman x_loc
   addi $a2, $t2, 0	# $a2 = pacman y_loc after moving  
   li $a3, 1		# $a2 = pacman object type = 1
   li $v0, 206		# $v0 = 206 for setting new object location 
@@ -936,8 +955,8 @@ move_pacman_down:
   add $t2, $t4, $t2	# $t2 = pacman y_loc after moving
   
   # check if the move crosses a border of the maze
-  la $t5, maze_size
-  lw $t4, 4($t5)	# $t4 = maze height
+  la $t4, maze_size
+  lw $t4, 4($t4)	# $t4 = maze height
   addi $t4, $t4, -1	# $t4 = y_loc of lower boarder
   slt $t5, $t4, $t2	# $t5 = (crossing boarder) ? 1 : 0
   beq $t5, $0, mpd_check_path # if (crossing boarder)
@@ -950,16 +969,26 @@ mpd_check_path:
   addi $a0, $t3, 0	# x-coordinate of pacman bottom left corner
   add $a1, $t2, $t1
   addi $a1, $a1, -1	# y-coordinate of pacman bottom left corner
+  
+  addi $sp, $sp, -4
+  sw $t2, 0($sp)	# push $t2
+  
   jal get_bitmap_cell	# $v0 = pacman enters a wall
+  
+  lw $t2, 0($sp)	# pop $t2
+  addi $sp, $sp, 4
+  
   slt $v0, $0, $v0
   bne $v0, $0, mpd_no_move # if (not entering a wall) 
   
 mpd_save_yloc:
   # confirm the move, set the new location of pacman
+  la $t0, pacman_locs	# $t0 = addr(pacman_locs)
+  lw $t1, 0($t0)	# $t1 = pacman x_loc
   sw $t2, 4($t0)	# save new y_loc
   la $t0, pacman_id
   lw $a0, 0($t0)	# $a0 = pacman_id
-  addi $a1, $t3, 0	# $a1 = pacman x_loc
+  addi $a1, $t1, 0	# $a1 = pacman x_loc
   addi $a2, $t2, 0	# $a2 = pacman y_loc after moving  
   li $a3, 1		# $a2 = pacman object type = 1
   li $v0, 206		# $v0 = 206 for setting new object location 
@@ -1222,10 +1251,10 @@ check_intersection:
 # Thirdly, set the value of $v0 based on the check result. Then: jr $ra 
 #*****Your codes start here
   # condition1: whether A's left edge is to the right of B's right edge,
-  lw $t0, 4($sp)	# $t0 = x4
-  lw $t1, 28($sp)	# $t1 = x1
-  slt $t2, $t0, $t1	# $t2 = (x4 < x1) ? 1 : 0
-  bne $t2, $0, no_intersect
+  lw $t0, 28($sp)	# $t0 = x1
+  lw $t1, 4($sp)	# $t1 = x4
+  slt $t2, $t0, $t1	# $t2 = (x1 < x4) ? 1 : 0
+  beq $t2, $0, no_intersect
   
   # condition2: whether A's right edge is to the left of B's left edge,
   lw $t0, 20($sp)	# $t0 = x2
@@ -1234,10 +1263,10 @@ check_intersection:
   bne $t2, $0, no_intersect
   
   # condition3: whether A's top edge is below B's bottom edge,
-  lw $t0, 0($sp)	# $t0 = y4
-  lw $t1, 24($sp)	# $t1 = y1
-  slt $t2, $t0, $t1	# $t2 = (y4 < y1) ? 1 : 0
-  bne $t2, $0, no_intersect
+  lw $t0, 24($sp)	# $t0 = y1
+  lw $t1, 0($sp)	# $t1 = y4
+  slt $t2, $t0, $t1	# $t2 = (y1 < y4) ? 1 : 0
+  beq $t2, $0, no_intersect
   
   # conditon4: whether A's bottom edge is above B's top edge,
   lw $t0, 16($sp)	# $t0 = y2
@@ -1245,11 +1274,11 @@ check_intersection:
   slt $t2, $t0, $t1	# $t2 = (y2 < y3) ? 1 : 0
   bne $t2, $0, no_intersect
 
-  addi $v0, $v0, 1	# intersection = true
+  addi $v0, $0, 1	# intersection = true
   jr $ra
   
 no_intersect:
-  addi $v0, $v0, 0	# intersection = false
+  addi $v0, $0, 0	# intersection = false
   jr $ra
 #*****Your codes end here
 
@@ -1324,6 +1353,7 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
   add $t1, $s7, $t1
   addi $t1, $t1, -1
   sw $t1, 16($sp)	# y2 = $t1 + $s7 -1
+  
   sw $t6, 12($sp)	# x3 = $t6
   sw $t7, 8($sp)	# y3 = $t7
   add $t6, $s3, $t6
@@ -1332,6 +1362,7 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
   add $t7, $s4, $t7
   addi $t7, $t7, -1
   sw $t7, 0($sp)	# y4 = $t7 + $s4 -1
+  
   jal check_intersection
   addi $sp, $sp, 32
 # *****Your codes end here
@@ -1366,6 +1397,9 @@ csc_be: beq $s0, $zero, csc_exit # whether num <= 0
   lw $t3, 0($t2)	# $t2 = game_score
   add $t3, $t3, $t1
   sw $t3, 0($t2)	# game_score += scorepoint_sv
+  addi $a0, $t3, 0
+  li $v0, 203
+  syscall		# set gamescore
 # *****Your codes end here
   
 
