@@ -4,7 +4,7 @@ COMP2611	Computer Organization
 2018 Spring, HKUST
 
 Gerald Liu  
-[wliuax@connect.ust.hk](mailto:wliuax@connect.ust.hk)
+[gerald.w.liu@gmail.com](mailto:gerald.w.liu@gmail.com)
 
 Study Notes: [comp2611.md](https://github.com/gerald-liu/comp2611/blob/master/notes/comp2611.md)  
 
